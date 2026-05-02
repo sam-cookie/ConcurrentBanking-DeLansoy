@@ -7,8 +7,8 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "../include/bank.h"
-#include "../include/transaction.h"
+#include "bank.h"
+#include "transaction.h"
 
 // prints msg + errno string to stderr
 void perror_die(const char *msg)
