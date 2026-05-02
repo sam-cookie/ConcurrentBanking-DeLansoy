@@ -21,9 +21,10 @@ typedef struct {
 } Operation;
 
 typedef enum {
+    TX_PENDING,
     TX_RUNNING,
     TX_COMMITTED,
-    TX_ABORTED
+    TX_ABORTED,
 } TxStatus;
 
 typedef struct {
