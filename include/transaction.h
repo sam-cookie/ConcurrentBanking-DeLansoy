@@ -41,4 +41,8 @@ typedef struct {
 
     TxStatus   status;
 } Transaction;
+
+// Execute a single transaction in a thread
+void *execute_transaction(void *arg);
+
 #endif // TRANSACTION_H
