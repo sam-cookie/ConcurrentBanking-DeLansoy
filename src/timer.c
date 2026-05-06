@@ -12,17 +12,14 @@ pthread_mutex_t tick_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  tick_changed = PTHREAD_COND_INITIALIZER;
 int             tick_interval_ms = 100;
 
+// resets simulation state before a run
+// note: tick_lock and tick_changed use static initializers (PTHREAD_MUTEX_INITIALIZER
+// and PTHREAD_COND_INITIALIZER) so pthread_mutex_init / pthread_cond_init are not
+// needed here
 void timer_init(void)
 {
-    if (pthread_mutex_init(&tick_lock, NULL) != 0) {
-        perror("timer_init: pthread_mutex_init");
-        exit(EXIT_FAILURE);
-    }
-
-    if (pthread_cond_init(&tick_changed, NULL) != 0) {
-        perror("timer_init: pthread_cond_init");
-        exit(EXIT_FAILURE);
-    }
+    global_tick        = 0;
+    simulation_running = 1;
 }
 
 void timer_destroy(void)
