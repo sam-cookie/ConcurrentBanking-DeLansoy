@@ -1,0 +1,4 @@
+# Withdraw more than available balance
+# Expected: T1 aborts with insufficient funds
+# Account 10 has PHP 500.00 (50000 centavos)
+T1 0 WITHDRAW 10 99999

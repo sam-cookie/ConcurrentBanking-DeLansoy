@@ -1,0 +1,6 @@
+# Multiple transactions reading same account simultaneously
+# Expected: all complete at same tick
+T1 0 BALANCE 10
+T2 0 BALANCE 10
+T3 0 BALANCE 10
+T4 0 BALANCE 10

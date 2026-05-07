@@ -1,0 +1,5 @@
+# Two transfers in opposite directions
+# Expected (prevention): both succeed via lock ordering
+# Expected (detection): one aborted, one committed
+T1 0 TRANSFER 10 20 5000
+T2 0 TRANSFER 20 10 3000
