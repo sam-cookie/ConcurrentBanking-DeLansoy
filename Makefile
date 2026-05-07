@@ -24,7 +24,8 @@ $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 #debug build with sanitizers
-debug: CFLAGS = -Wall -Wextra -Wpedantic -g -fsanitize=thread -Iinclude -pthread
+debug: CFLAGS  = -Wall -Wextra -Wpedantic -g -fsanitize=thread -no-pie -Iinclude -pthread
+debug: LDFLAGS = -pthread -lm -fsanitize=thread -no-pie
 debug: clean $(TARGET)
 
 # testing

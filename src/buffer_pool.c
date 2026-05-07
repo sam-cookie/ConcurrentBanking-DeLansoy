@@ -48,61 +48,78 @@ void bp_init(BufferPool *pool)
 // updates usage statistics
 void bp_load(BufferPool *pool, int account_id)
 {
-    // wait until there's at least one empty slot available
-    // this blocks the thread if buffer is full
+    // Check if buffer is full before waiting to track blocked ops
+    int sval;
+    sem_getvalue(&pool->empty_slots, &sval);
+    if (sval <= 0) {
+        pthread_mutex_lock(&pool->pool_lock);
+        pool->blocked_ops++;
+        pthread_mutex_unlock(&pool->pool_lock);
+    }
+
+    // wait for an empty slot in the buffer
     sem_wait(&pool->empty_slots);
 
-    // lock the buffer to safely modify slots
     pthread_mutex_lock(&pool->pool_lock);
 
-    // find the first free slot and assign the account
+    // update statistics
+    pool->total_loads++;
+
+    // find a free slot or verify if already loaded
+    int slot_idx = -1;
+    int current_usage = 0;
     for (int i = 0; i < BUFFER_POOL_SIZE; i++) {
-        if (pool->slots[i].account_id == -1) {  // slot is free
-            pool->slots[i].account_id = account_id;
-            pool->slots[i].in_use = true;
-            pool->current_usage++;  // track how many slots are now used
-            // update peak usage if this is the highest so far
-            if (pool->current_usage > pool->peak_usage) {
-                pool->peak_usage = pool->current_usage;
-            }
-            pool->total_loads++;  // count total load operations
-            break;  // done, exit loop
+        if (pool->slots[i].in_use) {
+            current_usage++;
+        }
+        if (slot_idx == -1 && !pool->slots[i].in_use) {
+            slot_idx = i;
         }
     }
 
-    // unlock the buffer
+    // place account in the found slot
+    pool->slots[slot_idx].account_id = account_id;
+    pool->slots[slot_idx].in_use = true;
+
+    // update peak usage metric
+    if (current_usage + 1 > pool->peak_usage) {
+        pool->peak_usage = current_usage + 1;
+    }
+
     pthread_mutex_unlock(&pool->pool_lock);
 
-    // signal that one more slot is now full
+    // signal that there is now a new full slot
     sem_post(&pool->full_slots);
 }
 
-// removes an account from the buffer, freeing its slot
-// waits for the account to be present, then clears the slot
+// removes a specific account from the buffer, freeing its slot
+// finds the exact account slot by account_id before touching any semaphore
 void bp_unload(BufferPool *pool, int account_id)
 {
-    // wait until there's at least one full slot
-    sem_wait(&pool->full_slots);
-
-    // lock to safely modify slots
+    // lock first to find and clear the specific account's slot atomically
     pthread_mutex_lock(&pool->pool_lock);
 
-    // find the slot with this account and free it
+    bool found = false;
     for (int i = 0; i < BUFFER_POOL_SIZE; i++) {
         if (pool->slots[i].account_id == account_id && pool->slots[i].in_use) {
             pool->slots[i].account_id = -1;  // mark as free
             pool->slots[i].in_use = false;
-            pool->current_usage--;  // one less slot used
-            pool->total_unloads++;  // count unload operations
-            break;  // done
+            pool->current_usage--;           // one less slot used
+            pool->total_unloads++;           // count unload operations
+            found = true;
+            break;
         }
     }
 
-    // unlock
     pthread_mutex_unlock(&pool->pool_lock);
 
-    // signal that one more slot is now empty
-    sem_post(&pool->empty_slots);
+    // only adjust semaphores if we actually found and removed the account
+    // this prevents corrupting the semaphore count when the account
+    // was never in the pool (e.g. double-unload or wrong account_id)
+    if (found) {
+        // restore one empty slot — lets a blocked bp_load proceed
+        sem_post(&pool->empty_slots);
+    }
 }
 
 // checks if a specific account is currently loaded in the buffer
@@ -122,11 +139,10 @@ bool bp_is_loaded(const BufferPool *pool, int account_id)
 // shows usage counts and performance metrics
 void bp_print_stats(const BufferPool *pool)
 {
-    printf("buffer pool statistics:\n");
+    printf("buffer pool stats:\n");
     printf("  total loads: %d\n", pool->total_loads);
     printf("  total unloads: %d\n", pool->total_unloads);
     printf("  peak usage: %d\n", pool->peak_usage);
-    printf("  current usage: %d\n", pool->current_usage);
     printf("  blocked ops: %d\n", pool->blocked_ops);
 }
 

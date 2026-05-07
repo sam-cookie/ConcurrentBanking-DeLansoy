@@ -13,5 +13,6 @@ void  timer_init(void);
 void  timer_destroy(void);
 void *timer_thread(void *arg);
 void  wait_until_tick(int target_tick);
+int   get_current_tick(void);
 
-#endif // TIMER_H 
+#endif // TIMER_H

@@ -52,3 +52,11 @@ void wait_until_tick(int target_tick)
     }
     pthread_mutex_unlock(&tick_lock);
 }
+
+// reading global_tick must hold tick_lock to avoid data races
+int get_current_tick(void) {
+    pthread_mutex_lock(&tick_lock);
+    int t = global_tick;
+    pthread_mutex_unlock(&tick_lock);
+    return t;
+}

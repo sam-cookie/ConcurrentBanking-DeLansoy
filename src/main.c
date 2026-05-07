@@ -26,6 +26,42 @@ static int num_transactions = 0;
 // Global options
 static int verbose = 0;
 
+// Timer thread handle
+static pthread_t timer_thread_handle;
+static void start_timer_system(void)
+{
+    simulation_running = 1;
+    global_tick = 0;
+
+    int result = pthread_create(&timer_thread_handle, NULL, timer_thread, NULL);
+    if (result != 0) {
+        die("Failed to create timer thread: %s", strerror(result));
+    }
+
+    // Wait until first tick occurs
+    pthread_mutex_lock(&tick_lock);
+    while (global_tick == 0) {
+        pthread_cond_wait(&tick_changed, &tick_lock);
+    }
+    pthread_mutex_unlock(&tick_lock);
+
+    if (verbose) {
+        printf("Timer thread started (tick interval: %dms)\n", tick_interval_ms);
+    }
+}
+
+// stop timer thread and clean up resources
+static void stop_timer_system(void)
+{
+    simulation_running = 0;
+
+    pthread_mutex_lock(&tick_lock);
+    pthread_cond_broadcast(&tick_changed);
+    pthread_mutex_unlock(&tick_lock);
+
+    pthread_join(timer_thread_handle, NULL);
+}
+
 int main(int argc, char *argv[])
 {
     const char *accounts_file = NULL;
@@ -84,6 +120,9 @@ int main(int argc, char *argv[])
     tick_interval_ms = tick_ms;
     timer_init();
 
+    // Start actual timer thread before transactions
+    start_timer_system();
+
     // Parse accounts file
     int num_accounts = parse_accounts(accounts_file);
     if (num_accounts < 0) {
@@ -138,8 +177,7 @@ int main(int argc, char *argv[])
     }
 
     // Stop the timer
-    simulation_running = 0;
-    pthread_cond_broadcast(&tick_changed);
+    stop_timer_system();
 
     // Print transaction details
     printf("\n=== Transaction Summary ===\n");

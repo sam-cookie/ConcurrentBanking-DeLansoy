@@ -20,11 +20,7 @@ void lm_destroy(void)
 
 // transfers money between two accounts with deadlock prevention
 // uses ordered locking and buffer pool for both accounts
-bool lm_transfer(int from_id, int to_id, int amount_centavos, int tx_id)
-{
-    // ignore transaction id for now
-    (void)tx_id;
-
+bool lm_transfer(int from_id, int to_id, int amount_centavos, int tx_id) {
     // check that account ids are valid and different
     if (from_id < 0 || from_id >= MAX_ACCOUNTS ||
         to_id < 0 || to_id >= MAX_ACCOUNTS ||
@@ -42,16 +38,12 @@ bool lm_transfer(int from_id, int to_id, int amount_centavos, int tx_id)
     int first_id = from_id < to_id ? from_id : to_id;
     int second_id = from_id < to_id ? to_id : from_id;
 
-    // load first account if not already in buffer
-    if (!bp_is_loaded(&buffer_pool, first_id)) {
-        bp_load(&buffer_pool, first_id);
-    }
-    // load second account if not already in buffer
-    if (!bp_is_loaded(&buffer_pool, second_id)) {
-        bp_load(&buffer_pool, second_id);
+    // MANDATORY LOG FOR LAB MANUAL:
+    if (from_id > to_id) {
+        printf("[DEADLOCK PREVENTED] T%d: Lock ordering applied for accounts %d and %d\n", 
+                tx_id, first_id, second_id);
     }
 
-    // lock accounts in ascending order to prevent deadlocks
     Account *first_acc = &bank.accounts[first_id];
     Account *second_acc = &bank.accounts[second_id];
 
@@ -62,11 +54,9 @@ bool lm_transfer(int from_id, int to_id, int amount_centavos, int tx_id)
     // verify source account has enough money
     Account *from_acc = &bank.accounts[from_id];
     if (from_acc->balance_centavos < amount_centavos) {
-        // unlock and unload if insufficient funds
+        // unlock if insufficient funds
         pthread_rwlock_unlock(&second_acc->lock);
         pthread_rwlock_unlock(&first_acc->lock);
-        bp_unload(&buffer_pool, first_id);
-        bp_unload(&buffer_pool, second_id);
         return false;
     }
 
@@ -78,10 +68,6 @@ bool lm_transfer(int from_id, int to_id, int amount_centavos, int tx_id)
     // unlock the accounts
     pthread_rwlock_unlock(&second_acc->lock);
     pthread_rwlock_unlock(&first_acc->lock);
-
-    // unload both accounts from buffer pool
-    bp_unload(&buffer_pool, first_id);
-    bp_unload(&buffer_pool, second_id);
 
     return true;
 }
