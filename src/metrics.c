@@ -2,7 +2,6 @@
 // includes transaction statistics and buffer pool usage
 
 #include <stdio.h>
-#include <stdlib.h>
 #include "metrics.h"
 #include "buffer_pool.h"
 
@@ -83,24 +82,4 @@ void metrics_print_table(Transaction *txs, int num_txs)
                txs[i].wait_ticks,
                status_str);
     }
-}
-
-// prints summary metrics including buffer pool stats
-// shows overall system performance
-void metrics_print_summary(const Metrics *m)
-{
-    // print transaction summary
-    printf("total transactions: %d\n", m->total_transactions);
-    printf("committed: %d\n", m->committed);
-    printf("aborted: %d\n", m->aborted);
-    printf("total ticks: %d\n", m->total_ticks);
-    printf("average wait ticks: %.2f\n", m->avg_wait_ticks);
-    printf("throughput (tx/tick): %.4f\n", m->throughput);
-
-    // print buffer pool section
-    printf("\nbuffer pool stats:\n");
-    printf("  total loads: %d\n", m->bp_total_loads);
-    printf("  total unloads: %d\n", m->bp_total_unloads);
-    printf("  peak usage: %d\n", m->bp_peak_usage);
-    printf("  blocked ops: %d\n", m->bp_blocked_ops);
 }

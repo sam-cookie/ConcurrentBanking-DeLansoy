@@ -3,7 +3,6 @@
 // the buffer simulates memory constraints for accounts
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
 #include <pthread.h>
@@ -50,8 +49,11 @@ void bp_load(BufferPool *pool, int account_id)
 {
     // Check if buffer is full before waiting to track blocked ops
     int sval;
+    bool was_blocked = false;
     sem_getvalue(&pool->empty_slots, &sval);
     if (sval <= 0) {
+        was_blocked = true;
+        printf("  [BUFFER FULL] Account %d is blocked, waiting for a free slot...\n", account_id);
         pthread_mutex_lock(&pool->pool_lock);
         pool->blocked_ops++;
         pthread_mutex_unlock(&pool->pool_lock);
@@ -59,6 +61,10 @@ void bp_load(BufferPool *pool, int account_id)
 
     // wait for an empty slot in the buffer
     sem_wait(&pool->empty_slots);
+
+    if (was_blocked) {
+        printf("  [BUFFER SLOT FREE] Account %d has acquired a slot and is proceeding\n", account_id);
+    }
 
     pthread_mutex_lock(&pool->pool_lock);
 
@@ -81,9 +87,10 @@ void bp_load(BufferPool *pool, int account_id)
     pool->slots[slot_idx].account_id = account_id;
     pool->slots[slot_idx].in_use = true;
 
-    // update peak usage metric
-    if (current_usage + 1 > pool->peak_usage) {
-        pool->peak_usage = current_usage + 1;
+    // update current and peak usage
+    pool->current_usage = current_usage + 1;
+    if (pool->current_usage > pool->peak_usage) {
+        pool->peak_usage = pool->current_usage;
     }
 
     pthread_mutex_unlock(&pool->pool_lock);
@@ -93,57 +100,29 @@ void bp_load(BufferPool *pool, int account_id)
 }
 
 // removes a specific account from the buffer, freeing its slot
-// finds the exact account slot by account_id before touching any semaphore
+// consumer side of the producer-consumer pattern: waits for a full slot
 void bp_unload(BufferPool *pool, int account_id)
 {
-    // lock first to find and clear the specific account's slot atomically
+    // wait for a full slot before attempting to unload
+    sem_wait(&pool->full_slots);
+
+    // lock to find and clear the specific account's slot atomically
     pthread_mutex_lock(&pool->pool_lock);
 
-    bool found = false;
     for (int i = 0; i < BUFFER_POOL_SIZE; i++) {
         if (pool->slots[i].account_id == account_id && pool->slots[i].in_use) {
             pool->slots[i].account_id = -1;  // mark as free
             pool->slots[i].in_use = false;
             pool->current_usage--;           // one less slot used
             pool->total_unloads++;           // count unload operations
-            found = true;
             break;
         }
     }
 
     pthread_mutex_unlock(&pool->pool_lock);
 
-    // only adjust semaphores if we actually found and removed the account
-    // this prevents corrupting the semaphore count when the account
-    // was never in the pool (e.g. double-unload or wrong account_id)
-    if (found) {
-        // restore one empty slot — lets a blocked bp_load proceed
-        sem_post(&pool->empty_slots);
-    }
-}
-
-// checks if a specific account is currently loaded in the buffer
-// returns true if found, false otherwise
-bool bp_is_loaded(const BufferPool *pool, int account_id)
-{
-    // scan all slots to see if account is present
-    for (int i = 0; i < BUFFER_POOL_SIZE; i++) {
-        if (pool->slots[i].account_id == account_id && pool->slots[i].in_use) {
-            return true;  // found it
-        }
-    }
-    return false;  // not found
-}
-
-// prints out the current buffer pool statistics
-// shows usage counts and performance metrics
-void bp_print_stats(const BufferPool *pool)
-{
-    printf("buffer pool stats:\n");
-    printf("  total loads: %d\n", pool->total_loads);
-    printf("  total unloads: %d\n", pool->total_unloads);
-    printf("  peak usage: %d\n", pool->peak_usage);
-    printf("  blocked ops: %d\n", pool->blocked_ops);
+    // restore one empty slot — lets a blocked bp_load proceed
+    sem_post(&pool->empty_slots);
 }
 
 // cleans up the buffer pool resources

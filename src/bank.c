@@ -5,8 +5,6 @@
 #include <string.h>
 
 #include "bank.h"
-#include "lock_mgr.h"
-#include "timer.h"
 
 Bank bank;
 
@@ -132,36 +130,4 @@ int get_balance(int account_id) {
     return balance;
 }
 
-// transfers amount from one account to another using lock ordering
-// locks are always acquired in ascending account_id order to prevent deadlock
-// (breaks the circular-wait Coffman condition)
-// returns false if from_id has insufficient funds
-bool transfer(int from_id, int to_id, int amount_centavos)
-{
-    if (from_id < 0 || from_id >= MAX_ACCOUNTS) return false;
-    if (to_id   < 0 || to_id   >= MAX_ACCOUNTS) return false;
-    if (!bank.accounts[from_id].exists)          return false;
-    if (!bank.accounts[to_id].exists)            return false;
-
-
-    // acquire locks in ascending ID order (deadlock prevention)
-    int first  = (from_id < to_id) ? from_id : to_id;
-    int second = (from_id < to_id) ? to_id   : from_id;
-
-    pthread_rwlock_wrlock(&bank.accounts[first].lock);
-    pthread_rwlock_wrlock(&bank.accounts[second].lock);
-
-    if (bank.accounts[from_id].balance_centavos < amount_centavos) {
-        pthread_rwlock_unlock(&bank.accounts[second].lock);
-        pthread_rwlock_unlock(&bank.accounts[first].lock);
-        return false;
-    }
-
-    bank.accounts[from_id].balance_centavos -= amount_centavos;
-    bank.accounts[to_id].balance_centavos   += amount_centavos;
-
-    pthread_rwlock_unlock(&bank.accounts[second].lock);
-    pthread_rwlock_unlock(&bank.accounts[first].lock);
-
-    return true;
-}
+// returns the sum of all account balances in centavos

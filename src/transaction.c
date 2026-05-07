@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include "transaction.h"
 #include "timer.h"
 #include "bank.h"
@@ -13,7 +12,8 @@ void *execute_transaction(void *arg)
 
     /* Wait until scheduled start tick */
     wait_until_tick(tx->start_tick);
-    tx->actual_start = global_tick;
+    int current_tick = get_current_tick();
+    tx->actual_start = current_tick;
     
     // Print transaction start with operation details
     Operation *op = &tx->ops[0];
@@ -38,14 +38,14 @@ void *execute_transaction(void *arg)
 
     if (op->type == OP_TRANSFER) {
         printf("Tick %d:\n  T%d started: %s from %d to %d amount PHP %d.%02d\n",
-               global_tick, tx->tx_id, op_type_str, op->account_id, op->target_account,
+               current_tick, tx->tx_id, op_type_str, op->account_id, op->target_account,
                op->amount_centavos / 100, op->amount_centavos % 100);
     } else if (op->type == OP_BALANCE) {
         printf("Tick %d:\n  T%d started: %s account %d\n",
-               global_tick, tx->tx_id, op_type_str, op->account_id);
+               current_tick, tx->tx_id, op_type_str, op->account_id);
     } else {
         printf("Tick %d:\n  T%d started: %s account %d amount PHP %d.%02d\n",
-               global_tick, tx->tx_id, op_type_str, op->account_id,
+               current_tick, tx->tx_id, op_type_str, op->account_id,
                op->amount_centavos / 100, op->amount_centavos % 100);
     }
 
@@ -68,9 +68,9 @@ void *execute_transaction(void *arg)
         Operation *op = &tx->ops[i];
         
         // Force the transaction to take time (Excellent criteria)
-        int tick_before = global_tick;
-        wait_until_tick(global_tick + 1); 
-        tx->wait_ticks += (global_tick - tick_before);
+        int tick_before = get_current_tick();
+        wait_until_tick(tick_before + 1); 
+        tx->wait_ticks += (get_current_tick() - tick_before);
 
         bool success = false;
         switch (op->type) {
@@ -95,7 +95,7 @@ void *execute_transaction(void *arg)
 
         if (!success && op->type != OP_BALANCE) {
             tx->status = TX_ABORTED;
-            tx->actual_end = global_tick;
+            tx->actual_end = get_current_tick();
             for (int j = 0; j < MAX_ACCOUNTS; j++)
                 if (loaded[j]) bp_unload(&buffer_pool, j);
             return NULL;
@@ -103,7 +103,7 @@ void *execute_transaction(void *arg)
     }
 
     tx->status = TX_COMMITTED;
-    tx->actual_end = global_tick;
+    tx->actual_end = get_current_tick();
 
     /* Cleanup: Unload everything after commit */
     for (int j = 0; j < MAX_ACCOUNTS; j++) {

@@ -1,10 +1,8 @@
 // Deadlock prevention or detection
 
 #include <stdio.h>
-#include <stdlib.h>
 #include "lock_mgr.h"
 #include "bank.h"
-#include "buffer_pool.h"
 
 DeadlockStrategy deadlock_strategy = DEADLOCK_PREVENTION;
 
@@ -29,7 +27,7 @@ bool lm_transfer(int from_id, int to_id, int amount_centavos, int tx_id) {
     }
 
     // ensure amount is positive
-    if (amount_centavos < 0) {
+    if (amount_centavos <= 0) {
         return false;
     }
 

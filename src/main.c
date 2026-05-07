@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include <unistd.h>
 
 #include "bank.h"
 #include "timer.h"
@@ -128,12 +127,8 @@ int main(int argc, char *argv[])
     printf("Timer thread started (tick interval: %dms)\n\n", tick_interval_ms);
 
     // Parse accounts file
-    int num_accounts = parse_accounts(accounts_file);
-    if (num_accounts < 0) {
+    if (parse_accounts(accounts_file) < 0) {
         die("Failed to parse accounts file");
-    }
-    if (verbose) {
-        printf("Loaded %d accounts\n", num_accounts);
     }
 
     // Parse trace file

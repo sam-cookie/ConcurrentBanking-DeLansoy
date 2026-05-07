@@ -32,8 +32,6 @@ extern BufferPool buffer_pool;
 void bp_init(BufferPool *pool);
 void bp_load(BufferPool *pool, int account_id);
 void bp_unload(BufferPool *pool, int account_id);
-bool bp_is_loaded(const BufferPool *pool, int account_id);
-void bp_print_stats(const BufferPool *pool);
 void bp_destroy(BufferPool *pool);
 
 #endif // buffer_pool.h

@@ -23,6 +23,5 @@ typedef struct {
 
 Metrics metrics_compute(Transaction *txs, int num_txs, int total_ticks);
 void    metrics_print_table(Transaction *txs, int num_txs);
-void    metrics_print_summary(const Metrics *m);
 
 #endif // METRICS_H 

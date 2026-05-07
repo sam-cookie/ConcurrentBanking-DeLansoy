@@ -32,7 +32,6 @@ long long bank_total_balance(void);
 
 bool deposit(int account_id, int amount_centavos);
 bool withdraw(int account_id, int amount_centavos);
-bool transfer(int from_id, int to_id, int amount_centavos);
 int  get_balance(int account_id);
 
 #endif // BANK_H
