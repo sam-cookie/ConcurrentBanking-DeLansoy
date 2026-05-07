@@ -58,9 +58,9 @@ Metrics metrics_compute(Transaction *txs, int num_txs, int total_ticks)
 void metrics_print_table(Transaction *txs, int num_txs)
 {
     // print table header
-    printf("%-5s %-10s %-10s %-10s %-10s %-10s\n",
-           "TxID", "Start", "End", "WaitTicks", "Status", "Ops");
-    printf("------------------------------------------------------------\n");
+    printf("%-5s | %-9s | %-11s | %-3s | %-9s | %-10s\n",
+           "TxID", "StartTick", "ActualStart", "End", "WaitTicks", "Status");
+    printf("------|-----------|-------------|-----|-----------|----------\n");
 
     // print each transaction's data
     for (int i = 0; i < num_txs; i++) {
@@ -74,14 +74,14 @@ void metrics_print_table(Transaction *txs, int num_txs)
         default: status_str = "UNKNOWN"; break;
         }
 
-        // print transaction details
-        printf("%-5d %-10d %-10d %-10d %-10s %-10d\n",
+        // print transaction details with pipe separators
+        printf("T%-4d | %9d | %11d | %3d | %9d | %-10s\n",
                txs[i].tx_id,
+               txs[i].start_tick,
                txs[i].actual_start,
                txs[i].actual_end,
                txs[i].wait_ticks,
-               status_str,
-               txs[i].num_ops);
+               status_str);
     }
 }
 

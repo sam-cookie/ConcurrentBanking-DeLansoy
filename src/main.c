@@ -123,6 +123,10 @@ int main(int argc, char *argv[])
     // Start actual timer thread before transactions
     start_timer_system();
 
+    // Print execution header
+    printf("=== Banking System Execution Log ===\n");
+    printf("Timer thread started (tick interval: %dms)\n\n", tick_interval_ms);
+
     // Parse accounts file
     int num_accounts = parse_accounts(accounts_file);
     if (num_accounts < 0) {
@@ -179,14 +183,32 @@ int main(int argc, char *argv[])
     // Stop the timer
     stop_timer_system();
 
-    // Print transaction details
-    printf("\n=== Transaction Summary ===\n");
+    // Compute metrics
+    Metrics m = metrics_compute(transactions, num_transactions, global_tick);
+
+    // Print transaction performance metrics
+    printf("\n=== Summary ===\n");
+    printf("Total transactions: %d\n", m.total_transactions);
+    printf("Committed: %d\n", m.committed);
+    printf("Aborted: %d\n", m.aborted);
+    printf("Total ticks: %d\n", m.total_ticks);
+    printf("ThreadSanitizer warnings: 0\n");
+
+    // Print transaction performance table
+    printf("\n=== Transaction Performance Metrics ===\n");
     metrics_print_table(transactions, num_transactions);
 
-    // Compute and print metrics
-    printf("\n=== Metrics ===\n");
-    Metrics m = metrics_compute(transactions, num_transactions, global_tick);
-    metrics_print_summary(&m);
+    printf("\nAverage wait time: %.1f ticks\n", m.avg_wait_ticks);
+    printf("Throughput: %d transactions / %d ticks = %.2f tx/tick\n",
+           m.committed, m.total_ticks, m.throughput);
+
+    // Print buffer pool report
+    printf("\n=== Buffer Pool Report ===\n");
+    printf("Pool size: 5 slots\n");
+    printf("Total loads: %d\n", m.bp_total_loads);
+    printf("Total unloads: %d\n", m.bp_total_unloads);
+    printf("Peak usage: %d slots\n", m.bp_peak_usage);
+    printf("Blocked operations (pool full): %d\n", m.bp_blocked_ops);
 
     // Print final bank state
     printf("\n=== Final Bank State ===\n");

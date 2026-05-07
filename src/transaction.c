@@ -14,7 +14,40 @@ void *execute_transaction(void *arg)
     /* Wait until scheduled start tick */
     wait_until_tick(tx->start_tick);
     tx->actual_start = global_tick;
-    printf("Tick %d: T%d started\n", global_tick, tx->tx_id);
+    
+    // Print transaction start with operation details
+    Operation *op = &tx->ops[0];
+    const char *op_type_str;
+    switch (op->type) {
+    case OP_DEPOSIT:
+        op_type_str = "DEPOSIT";
+        break;
+    case OP_WITHDRAW:
+        op_type_str = "WITHDRAW";
+        break;
+    case OP_TRANSFER:
+        op_type_str = "TRANSFER";
+        break;
+    case OP_BALANCE:
+        op_type_str = "BALANCE";
+        break;
+    default:
+        op_type_str = "UNKNOWN";
+        break;
+    }
+
+    if (op->type == OP_TRANSFER) {
+        printf("Tick %d:\n  T%d started: %s from %d to %d amount PHP %d.%02d\n",
+               global_tick, tx->tx_id, op_type_str, op->account_id, op->target_account,
+               op->amount_centavos / 100, op->amount_centavos % 100);
+    } else if (op->type == OP_BALANCE) {
+        printf("Tick %d:\n  T%d started: %s account %d\n",
+               global_tick, tx->tx_id, op_type_str, op->account_id);
+    } else {
+        printf("Tick %d:\n  T%d started: %s account %d amount PHP %d.%02d\n",
+               global_tick, tx->tx_id, op_type_str, op->account_id,
+               op->amount_centavos / 100, op->amount_centavos % 100);
+    }
 
     /* Load all accounts this transaction needs into the buffer pool up front. */
     bool loaded[MAX_ACCOUNTS] = {false};
