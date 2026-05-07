@@ -7,6 +7,7 @@
 #include "bank.h"
 #include "lock_mgr.h"
 #include "timer.h"
+#include "buffer_pool.h"
 
 Bank bank;
 
@@ -87,95 +88,131 @@ void bank_destroy(void)
 }
 
 // adds amount to account balance using a write lock
-// returns false if account does not exist or amount is invalid
-bool deposit(int account_id, int amount_centavos)
-{
-    if (account_id < 0 || account_id >= MAX_ACCOUNTS)
-        return false;
-
-    Account *acc = &bank.accounts[account_id];
-
-    if (!acc->exists)
-        return false;
-
-    pthread_rwlock_wrlock(&acc->lock);
-    acc->balance_centavos += amount_centavos;
-    pthread_rwlock_unlock(&acc->lock);
-
-    return true;
-}
-
-// adds amount to account balance using a write lock
 // measures ticks spent waiting for the lock and returns them to the caller
+// now includes buffer pool loading to simulate memory access
 bool deposit(int account_id, int amount_centavos)
 {
+    // check if account id is valid
     if (account_id < 0 || account_id >= MAX_ACCOUNTS)
         return false;
 
+    // get pointer to the account
     Account *acc = &bank.accounts[account_id];
 
+    // make sure account exists
     if (!acc->exists)
         return false;
 
+    // load account into buffer pool if not already there
+    // this simulates loading from disk/memory
+    if (!bp_is_loaded(&buffer_pool, account_id)) {
+        bp_load(&buffer_pool, account_id);
+    }
+
+    // record tick before locking to measure wait time
     int tick_before = global_tick;
+    // acquire write lock on the account
     pthread_rwlock_wrlock(&acc->lock);
+    // record tick after locking
     int tick_after = global_tick;
 
+    // add the amount to the balance
     acc->balance_centavos += amount_centavos;
 
+    // release the lock
     pthread_rwlock_unlock(&acc->lock);
 
-    (void)(tick_after - tick_before); // wait ticks available if caller needs it
+    // unload the account from buffer after operation
+    bp_unload(&buffer_pool, account_id);
+
+    // calculate wait ticks (available for metrics)
+    (void)(tick_after - tick_before);
     return true;
 }
 
 // removes amount from account balance using a write lock
 // returns false if account does not exist or has insufficient funds
+// includes buffer pool management for memory simulation
 bool withdraw(int account_id, int amount_centavos)
 {
+    // validate account id range
     if (account_id < 0 || account_id >= MAX_ACCOUNTS)
         return false;
 
+    // get account pointer
     Account *acc = &bank.accounts[account_id];
 
     if (!acc->exists)
         return false;
 
+    // ensure account is loaded in buffer pool
+    if (!bp_is_loaded(&buffer_pool, account_id)) {
+        bp_load(&buffer_pool, account_id);
+    }
+
+    // measure lock wait time
     int tick_before = global_tick;
+    // lock for writing
     pthread_rwlock_wrlock(&acc->lock);
     int tick_after = global_tick;
 
+    // check if balance is sufficient
     if (acc->balance_centavos < amount_centavos) {
+        // unlock and unload if insufficient funds
         pthread_rwlock_unlock(&acc->lock);
+        bp_unload(&buffer_pool, account_id);
         return false;
     }
 
+    // subtract the amount
     acc->balance_centavos -= amount_centavos;
+    // unlock
     pthread_rwlock_unlock(&acc->lock);
 
-    (void)(tick_after - tick_before); // wait ticks available if caller needs it
+    // remove from buffer after operation
+    bp_unload(&buffer_pool, account_id);
+
+    // wait ticks calculated
+    (void)(tick_after - tick_before);
     return true;
 }
 
 // reads account balance using a read lock (allows concurrent readers)
 // returns -1 if account does not exist
+// uses buffer pool to simulate memory access
 int get_balance(int account_id)
 {
+    // check valid id
     if (account_id < 0 || account_id >= MAX_ACCOUNTS)
         return -1;
 
+    // get account
     Account *acc = &bank.accounts[account_id];
 
+    // ensure exists
     if (!acc->exists)
         return -1;
 
+    // load into buffer if needed
+    if (!bp_is_loaded(&buffer_pool, account_id)) {
+        bp_load(&buffer_pool, account_id);
+    }
+
+    // measure wait time
     int tick_before = global_tick;
+    // read lock (shared)
     pthread_rwlock_rdlock(&acc->lock);
     int tick_after = global_tick;
 
+    // get the balance
     int balance = acc->balance_centavos;
+    // unlock
     pthread_rwlock_unlock(&acc->lock);
 
-    (void)(tick_after - tick_before); // wait ticks available if caller needs it
+    // unload from buffer
+    bp_unload(&buffer_pool, account_id);
+
+    // wait ticks
+    (void)(tick_after - tick_before);
     return balance;
 }

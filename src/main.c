@@ -9,6 +9,7 @@
 #include "lock_mgr.h"
 #include "transaction.h"
 #include "metrics.h"
+#include "buffer_pool.h"
 
 // Forward declarations from utils.c
 extern int parse_accounts(const char *filename);
@@ -76,6 +77,8 @@ int main(int argc, char *argv[])
     // Initialize bank and lock manager
     bank_init();
     lm_init();
+    // initialize buffer pool for account memory management
+    bp_init(&buffer_pool);
 
     // Initialize timer with specified tick interval
     tick_interval_ms = tick_ms;
@@ -155,6 +158,8 @@ int main(int argc, char *argv[])
     // Cleanup
     bank_destroy();
     lm_destroy();
+    // clean up buffer pool resources
+    bp_destroy(&buffer_pool);
     timer_destroy();
 
     return 0;
