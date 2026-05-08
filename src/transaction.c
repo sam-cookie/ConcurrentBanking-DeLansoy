@@ -5,6 +5,16 @@
 #include "lock_mgr.h"
 #include "buffer_pool.h"
 
+static int last_logged_tick = -1;
+
+#define LOG_TICK(tick) \
+    do { \
+        if ((tick) != last_logged_tick) { \
+            if (last_logged_tick >= 0) printf("\n"); \
+            last_logged_tick = (tick); \
+        } \
+    } while (0)
+
 void *execute_transaction(void *arg)
 {
     Transaction *tx = (Transaction *)arg;
@@ -36,6 +46,7 @@ void *execute_transaction(void *arg)
         break;
     }
 
+    LOG_TICK(current_tick);
     if (op->type == OP_TRANSFER) {
         printf("Tick %d:\n  T%d started: %s from %d to %d amount PHP %d.%02d\n",
                current_tick, tx->tx_id, op_type_str, op->account_id, op->target_account,
@@ -67,27 +78,65 @@ void *execute_transaction(void *arg)
     for (int i = 0; i < tx->num_ops; i++) {
         Operation *op = &tx->ops[i];
         
+        const char *op_type_str;
+        switch (op->type) {
+        case OP_DEPOSIT:
+            op_type_str = "DEPOSIT";
+            break;
+        case OP_WITHDRAW:
+            op_type_str = "WITHDRAW";
+            break;
+        case OP_TRANSFER:
+            op_type_str = "TRANSFER";
+            break;
+        case OP_BALANCE:
+            op_type_str = "BALANCE";
+            break;
+        default:
+            op_type_str = "UNKNOWN";
+            break;
+        }
+
         // Force the transaction to take time (Excellent criteria)
         int tick_before = get_current_tick();
         wait_until_tick(tick_before + 1); 
         tx->wait_ticks += (get_current_tick() - tick_before);
 
+        int op_tick = get_current_tick();
         bool success = false;
         switch (op->type) {
         case OP_DEPOSIT:
             success = deposit(op->account_id, op->amount_centavos);
+            if (success) {
+                LOG_TICK(op_tick);
+                printf("Tick %d:\n  T%d completed: %s successful\n",
+                       op_tick, tx->tx_id, op_type_str);
+            }
             break;
         case OP_WITHDRAW:
             success = withdraw(op->account_id, op->amount_centavos);
-            if (!success) printf("T%d: withdraw failed for account %d\n", tx->tx_id, op->account_id);
+            if (success) {
+                LOG_TICK(op_tick);
+                printf("Tick %d:\n  T%d completed: %s successful\n",
+                       op_tick, tx->tx_id, op_type_str);
+            } else {
+                printf("  T%d: withdraw failed for account %d\n", tx->tx_id, op->account_id);
+            }
             break;
         case OP_TRANSFER:
             success = lm_transfer(op->account_id, op->target_account, op->amount_centavos, tx->tx_id);
+            if (success) {
+                LOG_TICK(op_tick);
+                printf("Tick %d:\n  T%d completed: %s successful\n",
+                       op_tick, tx->tx_id, op_type_str);
+            }
             break;
         case OP_BALANCE: {
             int balance = get_balance(op->account_id);
-            printf("T%d: Account %d balance = PHP %d.%02d\n",
-                   tx->tx_id, op->account_id, balance / 100, balance % 100);
+            LOG_TICK(op_tick);
+            printf("Tick %d:\n  T%d: Account %d balance = PHP %d.%02d\n",
+                   op_tick, tx->tx_id, op->account_id,
+                   balance / 100, balance % 100);
             success = true;
             break;
         }

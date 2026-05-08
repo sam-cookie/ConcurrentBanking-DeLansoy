@@ -36,18 +36,24 @@ bool lm_transfer(int from_id, int to_id, int amount_centavos, int tx_id) {
     int first_id = from_id < to_id ? from_id : to_id;
     int second_id = from_id < to_id ? to_id : from_id;
 
-    // MANDATORY LOG FOR LAB MANUAL:
-    if (from_id > to_id) {
-        printf("[DEADLOCK PREVENTED] T%d: Lock ordering applied for accounts %d and %d\n", 
-                tx_id, first_id, second_id);
-    }
-
     Account *first_acc = &bank.accounts[first_id];
     Account *second_acc = &bank.accounts[second_id];
 
-    // acquire write locks on both accounts
     pthread_rwlock_wrlock(&first_acc->lock);
+    printf("  T%d acquired lock on account %d\n", tx_id, first_id);
+
+    if (from_id > to_id) {
+        printf("  [DEADLOCK PREVENTED] Lock ordering: T%d waiting for account %d\n", 
+                tx_id, to_id);
+    }
+
     pthread_rwlock_wrlock(&second_acc->lock);
+    printf("  T%d acquired lock on account %d\n", tx_id, second_id);
+
+    if (from_id > to_id) {
+        printf("  [DEADLOCK PREVENTED] Lock ordering: T%d waiting for account %d\n", 
+                tx_id, from_id);
+    }
 
     // verify source account has enough money
     Account *from_acc = &bank.accounts[from_id];
