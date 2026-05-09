@@ -2,6 +2,11 @@
 
 A multithreaded banking simulation that runs concurrent transactions with deadlock prevention, a bounded buffer pool, and reader-writer locks.
 
+## Members
+
+Del Rosario, Nina Claudia 
+Lansoy, Sam 
+
 ## Compilation
 
 Requires gcc and pthreads.
