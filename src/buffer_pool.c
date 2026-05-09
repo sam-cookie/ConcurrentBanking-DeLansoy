@@ -50,14 +50,14 @@ void bp_load(BufferPool *pool, int account_id)
     // Check if buffer is full before waiting to track blocked ops
     int sval;
     bool was_blocked = false;
+    pthread_mutex_lock(&pool->pool_lock);
     sem_getvalue(&pool->empty_slots, &sval);
     if (sval <= 0) {
         was_blocked = true;
-        printf("  [BUFFER FULL] Account %d is blocked, waiting for a free slot...\n", account_id);
-        pthread_mutex_lock(&pool->pool_lock);
         pool->blocked_ops++;
-        pthread_mutex_unlock(&pool->pool_lock);
+        printf("  [BUFFER FULL] Account %d is blocked, waiting for a free slot...\n", account_id);
     }
+    pthread_mutex_unlock(&pool->pool_lock);
 
     // wait for an empty slot in the buffer
     sem_wait(&pool->empty_slots);
