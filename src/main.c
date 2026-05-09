@@ -131,6 +131,9 @@ int main(int argc, char *argv[])
         die("Failed to parse accounts file");
     }
 
+    // Initial total before any transactions touch the accounts
+    long long initial_total = bank_total_balance();
+
     // Parse trace file
     int parse_result = parse_trace(trace_file, transactions, &num_transactions);
     if (parse_result < 0) {
@@ -205,10 +208,17 @@ int main(int argc, char *argv[])
     printf("Peak usage: %d slots\n", m.bp_peak_usage);
     printf("Blocked operations (pool full): %d\n", m.bp_blocked_ops);
 
-    // Print final bank state
-    printf("\n=== Final Bank State ===\n");
-    long long total_balance = bank_total_balance();
-    printf("Total balance: PHP %lld.%02lld\n", total_balance / 100, total_balance % 100);
+    // Print balance conservation check
+    // Initial total is captured before any transactions run
+    // Final total must equal initial total for conservation to pass
+    printf("\n=== Balance Conservation Check ===\n");
+    printf("Initial total     : PHP %lld.%02lld\n",
+           initial_total / 100, initial_total % 100);
+    long long final_total = bank_total_balance();
+    printf("Final total       : PHP %lld.%02lld\n",
+           final_total / 100, final_total % 100);
+    printf("Conservation check: %s\n",
+           initial_total == final_total ? "PASSED" : "FAILED");
 
     // Cleanup
     bank_destroy();
