@@ -1,5 +1,7 @@
 #define _GNU_SOURCE
 
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include "timer.h"
 
@@ -21,8 +23,13 @@ void timer_init(void)
 
 void timer_destroy(void)
 {
-    pthread_cond_destroy(&tick_changed);
-    pthread_mutex_destroy(&tick_lock);
+    int rc;
+    rc = pthread_cond_destroy(&tick_changed);
+    if (rc != 0)
+        fprintf(stderr, "pthread_cond_destroy failed: %s\n", strerror(rc));
+    rc = pthread_mutex_destroy(&tick_lock);
+    if (rc != 0)
+        fprintf(stderr, "pthread_mutex_destroy failed: %s\n", strerror(rc));
 }
 
 void *timer_thread(void *arg)
