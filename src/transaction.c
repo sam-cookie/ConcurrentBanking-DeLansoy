@@ -7,6 +7,17 @@
 
 static int last_logged_tick = -1;
 
+static const char *op_name(OpType t)
+{
+    switch (t) {
+    case OP_DEPOSIT:  return "DEPOSIT";
+    case OP_WITHDRAW: return "WITHDRAW";
+    case OP_TRANSFER: return "TRANSFER";
+    case OP_BALANCE:  return "BALANCE";
+    default:          return "UNKNOWN";
+    }
+}
+
 #define LOG_TICK(tick) \
     do { \
         if ((tick) != last_logged_tick) { \
@@ -27,24 +38,7 @@ void *execute_transaction(void *arg)
     
     // Print transaction start with operation details
     Operation *op = &tx->ops[0];
-    const char *op_type_str;
-    switch (op->type) {
-    case OP_DEPOSIT:
-        op_type_str = "DEPOSIT";
-        break;
-    case OP_WITHDRAW:
-        op_type_str = "WITHDRAW";
-        break;
-    case OP_TRANSFER:
-        op_type_str = "TRANSFER";
-        break;
-    case OP_BALANCE:
-        op_type_str = "BALANCE";
-        break;
-    default:
-        op_type_str = "UNKNOWN";
-        break;
-    }
+    const char *op_type_str = op_name(op->type);
 
     LOG_TICK(current_tick);
     if (op->type == OP_TRANSFER) {
@@ -78,24 +72,7 @@ void *execute_transaction(void *arg)
     for (int i = 0; i < tx->num_ops; i++) {
         Operation *op = &tx->ops[i];
         
-        const char *op_type_str;
-        switch (op->type) {
-        case OP_DEPOSIT:
-            op_type_str = "DEPOSIT";
-            break;
-        case OP_WITHDRAW:
-            op_type_str = "WITHDRAW";
-            break;
-        case OP_TRANSFER:
-            op_type_str = "TRANSFER";
-            break;
-        case OP_BALANCE:
-            op_type_str = "BALANCE";
-            break;
-        default:
-            op_type_str = "UNKNOWN";
-            break;
-        }
+        const char *op_type_str = op_name(op->type);
 
         // Force the transaction to take time (Excellent criteria)
         int tick_before = get_current_tick();
