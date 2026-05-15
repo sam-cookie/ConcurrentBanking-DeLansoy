@@ -30,39 +30,73 @@ This **"Hold-until-End"** design is intentional. It forces the system to respect
 ```
 === Test 5: Buffer Pool Saturation ===
 ./bankdb --accounts=tests/accounts.txt --trace=tests/trace_buffer.txt --deadlock=prevention --tick-ms=100
-Tick 1: T1 started
-Tick 1: T2 started
-Tick 1: T3 started
-Tick 1: T4 started
-Tick 1: T5 started
-Tick 1: T6 started
+=== Banking System Execution Log ===
+Timer thread started (tick interval: 100ms)
 
-=== Transaction Summary ===
-TxID  Start      End        WaitTicks  Status     Ops       
-------------------------------------------------------------
-1     1          2          1          COMMITTED  1         
-2     1          2          1          COMMITTED  1         
-3     1          2          1          COMMITTED  1         
-4     1          2          1          COMMITTED  1         
-5     1          2          1          COMMITTED  1         
-6     1          3          1          COMMITTED  1         
+Tick 1:
+  T1 started: DEPOSIT account 1 amount PHP 10.00
+Tick 1:
+  T2 started: DEPOSIT account 2 amount PHP 10.00
+Tick 1:
+  T3 started: DEPOSIT account 3 amount PHP 10.00
+Tick 1:
+  T4 started: DEPOSIT account 4 amount PHP 10.00
+Tick 1:
+  T5 started: DEPOSIT account 5 amount PHP 10.00
+Tick 1:
+  T6 started: DEPOSIT account 6 amount PHP 10.00
+  [BUFFER FULL] Account 6 is blocked, waiting for a free slot...
 
-=== Metrics ===
-total transactions: 6
-committed: 6
-aborted: 0
-total ticks: 4
-average wait ticks: 1.00
-throughput (tx/tick): 1.5000
 
-buffer pool stats:
-  total loads: 6
-  total unloads: 6
-  peak usage: 5
-  blocked ops: 1
+Tick 2:
+  T2 completed: DEPOSIT successful
 
-=== Final Bank State ===
-Total balance: PHP 1210.00
+  [BUFFER SLOT FREE] Account 6 has acquired a slot and is proceeding
+Tick 2:
+  T3 completed: DEPOSIT successful
+Tick 2:
+  T5 completed: DEPOSIT successful
+
+Tick 2:
+  T1 completed: DEPOSIT successful
+
+Tick 2:
+  T4 completed: DEPOSIT successful
+
+Tick 3:
+  T6 completed: DEPOSIT successful
+
+=== Summary ===
+Total transactions: 6
+Committed: 6
+Aborted: 0
+Total ticks: 4
+ThreadSanitizer warnings: 0
+
+=== Transaction Performance Metrics ===
+TxID  | StartTick | ActualStart | End | WaitTicks | Status    
+------|-----------|-------------|-----|-----------|----------
+T1    |         0 |           1 |   2 |         1 | COMMITTED 
+T2    |         0 |           1 |   2 |         1 | COMMITTED 
+T3    |         0 |           1 |   2 |         1 | COMMITTED 
+T4    |         0 |           1 |   2 |         1 | COMMITTED 
+T5    |         0 |           1 |   2 |         1 | COMMITTED 
+T6    |         0 |           1 |   3 |         1 | COMMITTED 
+
+Average wait time: 1.0 ticks
+Throughput: 6 transactions / 4 ticks = 1.50 tx/tick
+
+=== Buffer Pool Report ===
+Pool size: 5 slots
+Total loads: 6
+Total unloads: 6
+Peak usage: 5 slots
+Blocked operations (pool full): 1
+
+=== Balance Conservation Check ===
+Initial total     : PHP 1150.00
+Final total       : PHP 1210.00
+Conservation check: FAILED
 ```
 # 3. Reader-Writer Lock Performance
 ## The Benchmark: RW-Locks vs. Mutexes

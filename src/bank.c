@@ -76,12 +76,19 @@ long long bank_total_balance(void)
 // destroys all per-account reader-writer locks and the bank-level mutex
 void bank_destroy(void)
 {
+    int rc;
     for (int i = 0; i < MAX_ACCOUNTS; i++) {
-        if (bank.accounts[i].exists)
-            pthread_rwlock_destroy(&bank.accounts[i].lock);
+        if (bank.accounts[i].exists) {
+            rc = pthread_rwlock_destroy(&bank.accounts[i].lock);
+            if (rc != 0)
+                fprintf(stderr, "pthread_rwlock_destroy (account %d) failed: %s\n",
+                        i, strerror(rc));
+        }
     }
 
-    pthread_mutex_destroy(&bank.bank_lock);
+    rc = pthread_mutex_destroy(&bank.bank_lock);
+    if (rc != 0)
+        fprintf(stderr, "pthread_mutex_destroy (bank_lock) failed: %s\n", strerror(rc));
 }
 
 // adds amount to account balance using a write lock

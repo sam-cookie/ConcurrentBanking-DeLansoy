@@ -79,9 +79,10 @@ int main(int argc, char *argv[])
         } else if ((val = arg_value(argv[i], "--deadlock")) != NULL) {
             deadlock_str = val;
         } else if ((val = arg_value(argv[i], "--tick-ms")) != NULL) {
-            tick_ms = atoi(val);
-            if (tick_ms <= 0) {
-                die("Invalid --tick-ms value: %s (must be positive)", val);
+            char *end;
+            tick_ms = (int)strtol(val, &end, 10);
+            if (*end != '\0' || tick_ms <= 0) {
+                die("Invalid --tick-ms value: %s (must be a positive integer)", val);
             }
         } else if (strcmp(argv[i], "--verbose") == 0) {
             verbose = 1;

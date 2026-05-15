@@ -3,6 +3,7 @@
 // the buffer simulates memory constraints for accounts
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
 #include <pthread.h>
@@ -29,10 +30,20 @@ void bp_init(BufferPool *pool)
 
     // set up semaphores: empty_slots starts at max (all free)
     // full_slots starts at 0 (none occupied)
-    sem_init(&pool->empty_slots, 0, BUFFER_POOL_SIZE);
-    sem_init(&pool->full_slots, 0, 0);
+    if (sem_init(&pool->empty_slots, 0, BUFFER_POOL_SIZE) != 0) {
+        perror("sem_init (empty_slots)");
+        exit(EXIT_FAILURE);
+    }
+    if (sem_init(&pool->full_slots, 0, 0) != 0) {
+        perror("sem_init (full_slots)");
+        exit(EXIT_FAILURE);
+    }
     // mutex protects the buffer slots array
-    pthread_mutex_init(&pool->pool_lock, NULL);
+    int rc = pthread_mutex_init(&pool->pool_lock, NULL);
+    if (rc != 0) {
+        fprintf(stderr, "pthread_mutex_init failed: %s\n", strerror(rc));
+        exit(EXIT_FAILURE);
+    }
 
     // reset all statistics counters
     pool->total_loads = 0;
